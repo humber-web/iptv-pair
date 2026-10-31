@@ -160,7 +160,7 @@
         return data;
     }
 
-    // Wait up to ~20 s for the TV's reply on the same topic
+    // Wait up to ~30 s for the TV's reply on the same topic (the TV checks for messages every 5 s)
     function waitForTv(since) {
         var tries = 0;
         (function poll() {
@@ -169,9 +169,9 @@
                     try { var m = JSON.parse(line); return m.event === 'message' && m.title === TV_TITLE; } catch (e) { return false; }
                 });
                 if (got) { say(T.received, 'ok'); $('send').disabled = false; return; }
-                if (++tries < 7) setTimeout(poll, 3000);
+                if (++tries < 10) setTimeout(poll, 3000);
                 else { say(T.noReply, 'warn'); $('send').disabled = false; }
-            }).catch(function () { if (++tries < 7) setTimeout(poll, 3000); });
+            }).catch(function () { if (++tries < 10) setTimeout(poll, 3000); });
         })();
     }
 
