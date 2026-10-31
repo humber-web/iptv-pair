@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Send to TV</title>
+<style>
+    :root { --bg: #0d1117; --card: #161b22; --line: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #2f81f7; --ok: #3fb950; --warn: #f0883e; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 560px; margin: 0 auto; padding: 28px 16px 40px; }
+    h1 { font-size: 26px; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+    h1 svg { width: 30px; height: 30px; color: var(--accent); flex: none; }
+    p { margin: 0 0 18px; color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+    textarea { width: 100%; min-height: 170px; resize: vertical; padding: 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--text); font: 16px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    .row { display: flex; gap: 10px; margin-top: 12px; }
+    button { flex: 1; padding: 14px 16px; border-radius: 12px; border: 0; font: 600 17px system-ui, sans-serif; cursor: pointer; }
+    .primary { background: var(--accent); color: #fff; }
+    .secondary { background: #21262d; color: var(--text); border: 1px solid var(--line); flex: 0 0 auto; }
+    button:disabled { opacity: .5; }
+    #status { margin-top: 16px; min-height: 24px; font-weight: 600; }
+    #status.ok { color: var(--ok); }
+    #status.warn { color: var(--warn); }
+    .examples { margin-top: 22px; font-size: 14px; color: var(--muted); }
+    .examples code { display: block; margin-top: 6px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--text); white-space: pre-wrap; word-break: break-all; }
+    .bad { text-align: center; padding-top: 80px; }
+</style>
+</head>
+<body>
+<main id="app">
+    <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2.5"/><path d="M16.5 2.5L12 7 7.5 2.5"/></svg><span data-t="title"></span></h1>
+    <p data-t="intro"></p>
+    <div class="card">
+        <textarea id="text" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+        <div class="row">
+            <button id="paste" class="secondary" data-t="paste"></button>
+            <button id="send" class="primary" data-t="send"></button>
+        </div>
+        <div id="status"></div>
+    </div>
+    <div class="examples"><span data-t="examples"></span>
+        <code>http://server.com:8080/get.php?username=…&amp;password=…</code>
+        <code>Server: http://server.com:8080
+Username: …
+Password: …</code>
+    </div>
+</main>
+<script>
+// Phone side of the TV app's setup: whatever is pasted here goes to the TV through ntfy.sh,
+// on the one-time topic in this page's address (#iptv-…). The text never reaches this website.
+(function () {
+    var RELAY = 'https://ntfy.sh/';
+    var TV_TITLE = 'IPTV Player TV';
+    var es = /^es/i.test(navigator.language || '');
+    var T = es ? {
+        title: 'Enviar a la TV',
+        intro: 'Pega los datos que te dio tu proveedor de IPTV. Puedes pegar el mensaje o correo completo.',
+        paste: 'Pegar', send: 'Enviar a la TV', sending: 'Enviando…',
+        sent: 'Enviado. Esperando a la TV…', received: '✓ La TV lo recibió. Ya puedes cerrar esta página.',
+        noReply: 'Enviado, pero la TV no ha respondido. ¿Sigue abierta la pantalla con el código QR?',
+        noLink: 'No veo ningún enlace (http://…). Incluye la dirección del servidor.',
+        empty: 'Primero pega los datos.', failed: 'No se pudo enviar. Revisa la conexión del teléfono e inténtalo otra vez.',
+        badLink: 'Este enlace no es válido. Vuelve a escanear el código QR de la TV.',
+        examples: 'Ejemplos:', pasteFailed: 'Mantén pulsado el cuadro y elige Pegar.'
+    } : {
+        title: 'Send to TV',
+        intro: 'Paste the details your IPTV provider sent you. The whole message or e-mail is fine.',
+        paste: 'Paste', send: 'Send to TV', sending: 'Sending…',
+        sent: 'Sent. Waiting for the TV…', received: '✓ The TV got it. You can close this page.',
+        noReply: 'Sent, but the TV has not answered. Is the screen with the QR code still open?',
+        noLink: 'I can\'t see a link (http://…). Include the server address.',
+        empty: 'Paste the details first.', failed: 'Could not send. Check the phone\'s connection and try again.',
+        badLink: 'This link is not valid. Scan the QR code on the TV again.',
+        examples: 'Examples:', pasteFailed: 'Long-press the box and choose Paste.'
+    };
+    document.documentElement.lang = es ? 'es' : 'en';
+    Array.prototype.forEach.call(document.querySelectorAll('[data-t]'), function (el) { el.textContent = T[el.getAttribute('data-t')]; });
+
+    var topic = decodeURIComponent(location.hash.slice(1));
+    if (!/^iptv-[a-z0-9]{8,40}$/.test(topic)) {
+        document.getElementById('app').innerHTML = '<p class="bad">' + T.badLink + '</p>';
+        return;
+    }
+    var text = document.getElementById('text');
+    var send = document.getElementById('send');
+    var status = document.getElementById('status');
+
+    function say(msg, cls) { status.textContent = msg; status.className = cls || ''; }
+
+    document.getElementById('paste').onclick = function () {
+        if (!navigator.clipboard || !navigator.clipboard.readText) { say(T.pasteFailed, 'warn'); return; }
+        navigator.clipboard.readText().then(function (v) { text.value = v; text.focus(); }, function () { say(T.pasteFailed, 'warn'); });
+    };
+
+    // Wait up to ~20 s for the TV's "received" reply on the same topic
+    function waitForTv(since) {
+        var tries = 0;
+        (function poll() {
+            fetch(RELAY + topic + '/json?poll=1&since=' + since).then(function (r) { return r.text(); }).then(function (body) {
+                var got = body.split('\n').some(function (line) {
+                    try { var m = JSON.parse(line); return m.event === 'message' && m.title === TV_TITLE; } catch (e) { return false; }
+                });
+                if (got) { say(T.received, 'ok'); send.disabled = false; return; }
+                if (++tries < 7) setTimeout(poll, 3000);
+                else { say(T.noReply, 'warn'); send.disabled = false; }
+            }).catch(function () { if (++tries < 7) setTimeout(poll, 3000); });
+        })();
+    }
+
+    send.onclick = function () {
+        var v = text.value.trim();
+        if (!v) { say(T.empty, 'warn'); return; }
+        if (!/https?:\/\/|\w\.\w/.test(v)) { say(T.noLink, 'warn'); return; }
+        send.disabled = true;
+        say(T.sending);
+        var since = Math.floor(Date.now() / 1000) - 2;
+        // A text/plain body keeps this a simple request; ntfy reads the JSON from it
+        fetch(RELAY, { method: 'POST', body: JSON.stringify({ topic: topic, title: 'IPTV phone', message: v }) }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            say(T.sent);
+            waitForTv(since);
+        }).catch(function () { say(T.failed, 'warn'); send.disabled = false; });
+    };
+})();
+</script>
+</body>
+</html>
