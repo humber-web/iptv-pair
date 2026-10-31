@@ -1,101 +1,166 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
 <title>Send to TV</title>
 <style>
     :root { --bg: #0d1117; --card: #161b22; --line: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #2f81f7; --ok: #3fb950; --warn: #f0883e; }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    main { max-width: 560px; margin: 0 auto; padding: 28px 16px 40px; }
+    main { max-width: 520px; margin: 0 auto; padding: 28px 16px 40px; }
     h1 { font-size: 26px; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
     h1 svg { width: 30px; height: 30px; color: var(--accent); flex: none; }
-    p { margin: 0 0 18px; color: var(--muted); }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
-    textarea { width: 100%; min-height: 170px; resize: vertical; padding: 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--text); font: 16px/1.4 ui-monospace, Menlo, Consolas, monospace; }
-    textarea:focus { outline: none; border-color: var(--accent); }
-    .row { display: flex; gap: 10px; margin-top: 12px; }
-    button { flex: 1; padding: 14px 16px; border-radius: 12px; border: 0; font: 600 17px system-ui, sans-serif; cursor: pointer; }
-    .primary { background: var(--accent); color: #fff; }
-    .secondary { background: #21262d; color: var(--text); border: 1px solid var(--line); flex: 0 0 auto; }
-    button:disabled { opacity: .5; }
-    #status { margin-top: 16px; min-height: 24px; font-weight: 600; }
+    .intro { margin: 0 0 20px; color: var(--muted); }
+    .tabs { display: flex; gap: 6px; padding: 5px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 16px; }
+    .tabs button { flex: 1; padding: 11px 8px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font: 600 15px system-ui, sans-serif; cursor: pointer; }
+    .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+    form { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+    label { display: block; margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--muted); }
+    .field { margin-bottom: 16px; position: relative; }
+    input { width: 100%; padding: 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); color: var(--text); font: 17px system-ui, sans-serif; }
+    input:focus { outline: none; border-color: var(--accent); }
+    input.bad { border-color: var(--warn); }
+    .pw input { padding-right: 56px; }
+    .eye { position: absolute; right: 6px; bottom: 6px; width: 44px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .eye svg { width: 22px; height: 22px; }
+    .hidden { display: none !important; }
+    .send { width: 100%; margin-top: 4px; padding: 15px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font: 700 18px system-ui, sans-serif; cursor: pointer; }
+    .send:disabled { opacity: .55; }
+    #status { margin-top: 16px; min-height: 24px; font-weight: 600; text-align: center; }
     #status.ok { color: var(--ok); }
     #status.warn { color: var(--warn); }
-    .examples { margin-top: 22px; font-size: 14px; color: var(--muted); }
-    .examples code { display: block; margin-top: 6px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; color: var(--text); white-space: pre-wrap; word-break: break-all; }
-    .bad { text-align: center; padding-top: 80px; }
+    .bad-link { text-align: center; padding-top: 80px; color: var(--muted); }
 </style>
 </head>
 <body>
 <main id="app">
     <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2.5"/><path d="M16.5 2.5L12 7 7.5 2.5"/></svg><span data-t="title"></span></h1>
-    <p data-t="intro"></p>
-    <div class="card">
-        <textarea id="text" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
-        <div class="row">
-            <button id="paste" class="secondary" data-t="paste"></button>
-            <button id="send" class="primary" data-t="send"></button>
+    <p class="intro" data-t="intro"></p>
+
+    <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-login" aria-selected="true" data-t="tabLogin"></button>
+        <button type="button" role="tab" id="tab-link" aria-selected="false" data-t="tabLink"></button>
+    </div>
+
+    <form id="form" novalidate>
+        <div id="login-fields">
+            <div class="field">
+                <label for="server" data-t="server"></label>
+                <input id="server" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="http://…">
+            </div>
+            <div class="field">
+                <label for="user" data-t="user"></label>
+                <input id="user" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+            </div>
+            <div class="field pw">
+                <label for="pass" data-t="pass"></label>
+                <input id="pass" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+                <button type="button" class="eye" id="eye" aria-label="Show password">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+            </div>
         </div>
-        <div id="status"></div>
-    </div>
-    <div class="examples"><span data-t="examples"></span>
-        <code>http://server.com:8080/get.php?username=…&amp;password=…</code>
-        <code>Server: http://server.com:8080
-Username: …
-Password: …</code>
-    </div>
+        <div id="link-fields" class="hidden">
+            <div class="field">
+                <label for="link" data-t="link"></label>
+                <input id="link" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="http://…">
+            </div>
+        </div>
+        <button type="submit" class="send" id="send" data-t="send"></button>
+        <div id="status" role="status"></div>
+    </form>
 </main>
 <script>
-// Phone side of the TV app's setup: whatever is pasted here goes to the TV through ntfy.sh,
-// on the one-time topic in this page's address (#iptv-…). The text never reaches this website.
+// Phone side of the TV app's setup. The details go to the TV through ntfy.sh on the one-time topic
+// in this page's address (#iptv-…); nothing typed here reaches this website.
 (function () {
     var RELAY = 'https://ntfy.sh/';
     var TV_TITLE = 'IPTV Player TV';
-    var es = /^es/i.test(navigator.language || '');
+    var es = !/^en/i.test(navigator.language || 'es');
     var T = es ? {
-        title: 'Enviar a la TV',
-        intro: 'Pega los datos que te dio tu proveedor de IPTV. Puedes pegar el mensaje o correo completo.',
-        paste: 'Pegar', send: 'Enviar a la TV', sending: 'Enviando…',
-        sent: 'Enviado. Esperando a la TV…', received: '✓ La TV lo recibió. Ya puedes cerrar esta página.',
-        noReply: 'Enviado, pero la TV no ha respondido. ¿Sigue abierta la pantalla con el código QR?',
-        noLink: 'No veo ningún enlace (http://…). Incluye la dirección del servidor.',
-        empty: 'Primero pega los datos.', failed: 'No se pudo enviar. Revisa la conexión del teléfono e inténtalo otra vez.',
-        badLink: 'Este enlace no es válido. Vuelve a escanear el código QR de la TV.',
-        examples: 'Ejemplos:', pasteFailed: 'Mantén pulsado el cuadro y elige Pegar.'
+        title: 'Conectar la TV', intro: 'Escribe los datos que te dio tu proveedor de IPTV.',
+        tabLogin: 'Usuario y contraseña', tabLink: 'Enlace de lista',
+        server: 'Servidor', user: 'Usuario', pass: 'Contraseña', link: 'Enlace de la lista (M3U)',
+        send: 'Enviar a la TV', sending: 'Enviando…', sent: 'Enviado. Esperando a la TV…',
+        received: '✓ ¡Listo! La TV está cargando tus canales.', noReply: 'Enviado, pero la TV no responde. ¿Sigue abierta la pantalla con el código QR?',
+        missing: 'Completa los campos marcados.', badUrl: 'Revisa la dirección: debe parecerse a http://servidor.com:8080',
+        failed: 'No se pudo enviar. Revisa la conexión del teléfono e inténtalo de nuevo.',
+        badPage: 'Este enlace no es válido. Vuelve a escanear el código QR que aparece en la TV.'
     } : {
-        title: 'Send to TV',
-        intro: 'Paste the details your IPTV provider sent you. The whole message or e-mail is fine.',
-        paste: 'Paste', send: 'Send to TV', sending: 'Sending…',
-        sent: 'Sent. Waiting for the TV…', received: '✓ The TV got it. You can close this page.',
-        noReply: 'Sent, but the TV has not answered. Is the screen with the QR code still open?',
-        noLink: 'I can\'t see a link (http://…). Include the server address.',
-        empty: 'Paste the details first.', failed: 'Could not send. Check the phone\'s connection and try again.',
-        badLink: 'This link is not valid. Scan the QR code on the TV again.',
-        examples: 'Examples:', pasteFailed: 'Long-press the box and choose Paste.'
+        title: 'Connect your TV', intro: 'Enter the details your IPTV provider gave you.',
+        tabLogin: 'Username & password', tabLink: 'Playlist link',
+        server: 'Server', user: 'Username', pass: 'Password', link: 'Playlist link (M3U)',
+        send: 'Send to TV', sending: 'Sending…', sent: 'Sent. Waiting for the TV…',
+        received: '✓ Done! The TV is loading your channels.', noReply: 'Sent, but the TV is not answering. Is the screen with the QR code still open?',
+        missing: 'Fill in the highlighted fields.', badUrl: 'Check the address: it should look like http://server.com:8080',
+        failed: 'Could not send. Check the phone\'s connection and try again.',
+        badPage: 'This link is not valid. Scan the QR code on the TV again.'
     };
     document.documentElement.lang = es ? 'es' : 'en';
+    document.title = T.send;
     Array.prototype.forEach.call(document.querySelectorAll('[data-t]'), function (el) { el.textContent = T[el.getAttribute('data-t')]; });
 
     var topic = decodeURIComponent(location.hash.slice(1));
     if (!/^iptv-[a-z0-9]{8,40}$/.test(topic)) {
-        document.getElementById('app').innerHTML = '<p class="bad">' + T.badLink + '</p>';
+        document.getElementById('app').innerHTML = '<p class="bad-link">' + T.badPage + '</p>';
         return;
     }
-    var text = document.getElementById('text');
-    var send = document.getElementById('send');
-    var status = document.getElementById('status');
+    var $ = function (id) { return document.getElementById(id); };
+    var mode = 'login';
 
-    function say(msg, cls) { status.textContent = msg; status.className = cls || ''; }
+    function setMode(m) {
+        mode = m;
+        $('tab-login').setAttribute('aria-selected', m === 'login');
+        $('tab-link').setAttribute('aria-selected', m === 'link');
+        $('login-fields').classList.toggle('hidden', m !== 'login');
+        $('link-fields').classList.toggle('hidden', m !== 'link');
+        say('');
+    }
+    $('tab-login').onclick = function () { setMode('login'); };
+    $('tab-link').onclick = function () { setMode('link'); };
+    $('eye').onclick = function () { $('pass').type = $('pass').type === 'password' ? 'text' : 'password'; };
+    Array.prototype.forEach.call(document.querySelectorAll('input'), function (el) {
+        el.addEventListener('input', function () { el.classList.remove('bad'); });
+    });
 
-    document.getElementById('paste').onclick = function () {
-        if (!navigator.clipboard || !navigator.clipboard.readText) { say(T.pasteFailed, 'warn'); return; }
-        navigator.clipboard.readText().then(function (v) { text.value = v; text.focus(); }, function () { say(T.pasteFailed, 'warn'); });
-    };
+    function say(msg, cls) { $('status').textContent = msg; $('status').className = cls || ''; }
 
-    // Wait up to ~20 s for the TV's "received" reply on the same topic
+    // "server.com:8080" -> "http://server.com:8080"; null when it cannot be an address
+    function address(v) {
+        v = v.trim();
+        if (!v) return null;
+        if (!/^https?:\/\//i.test(v)) v = 'http://' + v;
+        try { var u = new URL(v); return /\./.test(u.hostname) || u.hostname === 'localhost' ? v : null; } catch (e) { return null; }
+    }
+
+    function collect() {
+        var bad = [];
+        var data;
+        if (mode === 'login') {
+            var server = address($('server').value);
+            if (!server) bad.push('server');
+            if (!$('user').value.trim()) bad.push('user');
+            if (!$('pass').value) bad.push('pass');
+            data = { url: server, user: $('user').value.trim(), pass: $('pass').value };
+        } else {
+            var link = address($('link').value);
+            if (!link) bad.push('link');
+            data = { url: link, user: '', pass: '' };
+        }
+        bad.forEach(function (id) { $(id).classList.add('bad'); });
+        if (bad.length) {
+            var onlyAddress = bad.length === 1 && (bad[0] === 'server' || bad[0] === 'link') && $(bad[0]).value.trim();
+            say(onlyAddress ? T.badUrl : T.missing, 'warn');
+            $(bad[0]).focus();
+            return null;
+        }
+        return data;
+    }
+
+    // Wait up to ~20 s for the TV's reply on the same topic
     function waitForTv(since) {
         var tries = 0;
         (function poll() {
@@ -103,26 +168,27 @@ Password: …</code>
                 var got = body.split('\n').some(function (line) {
                     try { var m = JSON.parse(line); return m.event === 'message' && m.title === TV_TITLE; } catch (e) { return false; }
                 });
-                if (got) { say(T.received, 'ok'); send.disabled = false; return; }
+                if (got) { say(T.received, 'ok'); $('send').disabled = false; return; }
                 if (++tries < 7) setTimeout(poll, 3000);
-                else { say(T.noReply, 'warn'); send.disabled = false; }
+                else { say(T.noReply, 'warn'); $('send').disabled = false; }
             }).catch(function () { if (++tries < 7) setTimeout(poll, 3000); });
         })();
     }
 
-    send.onclick = function () {
-        var v = text.value.trim();
-        if (!v) { say(T.empty, 'warn'); return; }
-        if (!/https?:\/\/|\w\.\w/.test(v)) { say(T.noLink, 'warn'); return; }
-        send.disabled = true;
+    $('form').onsubmit = function (e) {
+        e.preventDefault();
+        var data = collect();
+        if (!data) return;
+        $('send').disabled = true;
         say(T.sending);
         var since = Math.floor(Date.now() / 1000) - 2;
-        // A text/plain body keeps this a simple request; ntfy reads the JSON from it
-        fetch(RELAY, { method: 'POST', body: JSON.stringify({ topic: topic, title: 'IPTV phone', message: v }) }).then(function (r) {
+        // The TV reads the fields from this JSON message. A text/plain body keeps the request simple (no CORS preflight)
+        var message = JSON.stringify({ iptv: 1, url: data.url, user: data.user, pass: data.pass });
+        fetch(RELAY, { method: 'POST', body: JSON.stringify({ topic: topic, title: 'IPTV phone', message: message }) }).then(function (r) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             say(T.sent);
             waitForTv(since);
-        }).catch(function () { say(T.failed, 'warn'); send.disabled = false; });
+        }).catch(function () { say(T.failed, 'warn'); $('send').disabled = false; });
     };
 })();
 </script>
